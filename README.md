@@ -83,6 +83,7 @@ A central **supervisor** orchestrates all hand-offs and returns control after ea
    source venv/bin/activate
    pip install -e .[inmem] langgraph-cli
    ```
+   You can use either the pyproject.toml or the requirements.txt for installing dependencies.
 
 2. **Configure your secrets**
    Create a .env file at the project root and add your API keys:
@@ -95,6 +96,8 @@ A central **supervisor** orchestrates all hand-offs and returns control after ea
 
 3. **Main config**
    Each workflow reads its routing, agents, and tool definitions from langgraph.json at the root—open it to tweak agent names, prompts, or turn on/off streaming.
+
+   Also be carefull to create the appropriate __init__.py file inside the respective agent directory like done in src/agent.
 
 4. **Launch LangGraph Dev Studio**
 
