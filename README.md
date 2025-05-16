@@ -44,7 +44,7 @@ Each agent can hand off directly to any other agent in the group, without a cent
 ### Supervisor
 
 A central **supervisor** orchestrates all hand-offs and returns control after each step.
-![Supervisor](src/assets/5ac02dee-3fbe-41e2-8ca3-e9f0423d024c.png)
+![Supervisor]
 
 | **Use Case**                            | **Description**                                                                                                       |
 | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
@@ -59,7 +59,7 @@ A central **supervisor** orchestrates all hand-offs and returns control after ea
 ### Swarm
 
 **Swarm** agents hand off directly, peer-to-peer, in a shared workspace.
-![Swarm](src/assets/7c6b52bf-554f-4704-88a3-8aee6f53099b.png)
+![Swarm]
 
 | **Use Case**                          | **Description**                                                                                                                           |
 | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
