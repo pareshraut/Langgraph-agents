@@ -2,9 +2,6 @@ import os, json, random, base64
 from typing import Optional
 
 # ─── Environment & Clients ────────────────────────────────────────────────────
-os.environ["OPENAI_API_KEY"] = ""
-
-
 from openai import OpenAI
 from langchain_openai import ChatOpenAI
 
@@ -136,30 +133,32 @@ graph = builder.compile()
 # )
 # graph = builder.compile()
 
-# ─── Audio I/O (local testing only) ───────────────────────────────────────────
-import sounddevice as sd
-import string
-import imageio_ffmpeg
-from pydub import AudioSegment
-os.environ["PATH"] += os.pathsep + "/opt/homebrew/bin"
+# ─── Audio I/O (local testing only, optional deps) ────────────────────────────
+def _require_voice_deps():
+    try:
+        import sounddevice as sd
+        import string
+        import imageio_ffmpeg  # noqa: F401 - ensures ffmpeg wheels are present
+        from pydub import AudioSegment
+        from scipy.io.wavfile import write
+        import simpleaudio as sa
+    except Exception as exc:
+        raise RuntimeError(
+            "Voice dependencies missing. Install with:\n"
+            "pip install sounddevice scipy simpleaudio pydub ffmpeg-python imageio-ffmpeg"
+        ) from exc
+    return sd, string, AudioSegment, write, sa
 
-from pydub import AudioSegment
-# explicitly point pydub at the binaries:
-AudioSegment.converter = "/opt/homebrew/bin/ffmpeg"
-AudioSegment.ffprobe   = "/opt/homebrew/bin/ffprobe"
-import io
-from scipy.io.wavfile import write
-import simpleaudio as sa
 
-def record_audio(seconds: int = 5,
-                 fs: int = 16000,
-                 filename: str = "local_input.wav") -> str:
+def record_audio(seconds: int = 5, fs: int = 16000, filename: str = "local_input.wav") -> str:
     """Record from mic and save to WAV."""
-    print(f"[Recording {seconds}s]…")
+    sd, _, _, write, _ = _require_voice_deps()
+    print(f"[Recording {seconds}s]...")
     rec = sd.rec(int(seconds * fs), samplerate=fs, channels=1, dtype="int16")
     sd.wait()
     write(filename, fs, rec)
     return filename
+
 
 def transcribe_audio(file_path: str) -> str:
     """Use Whisper to transcribe a local WAV file."""
@@ -167,36 +166,39 @@ def transcribe_audio(file_path: str) -> str:
         resp = client.audio.transcriptions.create(model="whisper-1", file=f)
     return resp.text
 
-def synthesize_speech(text: str) -> AudioSegment:
+
+def synthesize_speech(text: str):
     """Return a pydub AudioSegment decoded from TTS MP3 bytes."""
-    resp = client.audio.speech.create(
-        model="tts-1", voice="nova", input=text
-    )
+    _, _, AudioSegment, _, _ = _require_voice_deps()
+    import io
+
+    os.environ["PATH"] += os.pathsep + "/opt/homebrew/bin"
+    AudioSegment.converter = "/opt/homebrew/bin/ffmpeg"
+    AudioSegment.ffprobe = "/opt/homebrew/bin/ffprobe"
+
+    resp = client.audio.speech.create(model="tts-1", voice="nova", input=text)
     mp3_bytes = resp.content
-    # pydub will now use our bundled ffmpeg for both decoding & probing
     audio = AudioSegment.from_file(io.BytesIO(mp3_bytes), format="mp3")
     return audio
 
+
 def is_exit_command(text: str) -> bool:
-    # Remove leading/trailing whitespace, lowercase, strip punctuation
-    cleaned = text.strip().lower().translate(
-        str.maketrans("", "", string.punctuation)
-    )
-    return cleaned in ("bye", "goodbye", "exit", "quit", "Thanks, bye.")
+    _, string, _, _, _ = _require_voice_deps()
+    cleaned = text.strip().lower().translate(str.maketrans("", "", string.punctuation))
+    return cleaned in ("bye", "goodbye", "exit", "quit", "thanks bye")
+
 
 def run_conversational_voice_bot(interaction_seconds=5, fs=16000, filename="local_input.wav"):
+    _, _, _, _, sa = _require_voice_deps()
     state = {"messages": []}
-    print("Starting voice chat (say 'bye' or 'goodbye' to end)…")
+    print("Starting voice chat (say 'bye' or 'goodbye' to end)...")
     while True:
-        # 1) record & STT
         record_audio(interaction_seconds, fs, filename)
         user_text = transcribe_audio(filename)
         print("USER:", user_text)
 
-        # 2) check for exit
         if is_exit_command(user_text):
-            print("User said exit—ending conversation.")
-            # Final goodbye
+            print("User said exit. Ending conversation.")
             farewell = "Thank you for calling!"
             print("BOT :", farewell)
             audio = synthesize_speech(farewell)
@@ -204,25 +206,23 @@ def run_conversational_voice_bot(interaction_seconds=5, fs=16000, filename="loca
                 audio.raw_data,
                 num_channels=audio.channels,
                 bytes_per_sample=audio.sample_width,
-                sample_rate=audio.frame_rate
+                sample_rate=audio.frame_rate,
             ).wait_done()
             break
 
         state["messages"].append(HumanMessage(content=user_text))
-
-        # 3) normal routing & reply
         state = graph.invoke(state)
         reply = state["messages"][-1].content
         print("BOT :", reply)
 
-        # 4) TTS & playback
         audio = synthesize_speech(reply)
         sa.play_buffer(
             audio.raw_data,
             num_channels=audio.channels,
             bytes_per_sample=audio.sample_width,
-            sample_rate=audio.frame_rate
+            sample_rate=audio.frame_rate,
         ).wait_done()
 
-if __name__ == "__main__":
-    run_conversational_voice_bot()
+
+# if __name__ == "__main__":
+#     run_conversational_voice_bot()

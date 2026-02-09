@@ -143,12 +143,16 @@ A central **supervisor** orchestrates all hand-offs and returns control after ea
 
 The **Customer Agent** in `src/agent/graph.py` can run locally as a full **voice chatbot**:
 
-1. **Dependencies**
+1. **Dependencies (optional)**
 
    ```bash
-   pip install sounddevice scipy simpleaudio pydub ffmpeg-python
+   pip install -e ".[voice]"
+   # or
+   pip install sounddevice scipy simpleaudio pydub ffmpeg-python imageio-ffmpeg
    brew install ffmpeg
    ```
+   These are only required if you want to run the local voice loop. `langgraph dev`
+   works without them.
 
 2. **Run**
 

@@ -1,0 +1,10 @@
+.DS_Store
+.env
+.langgraph_api/
+__pycache__/
+*.py[cod]
+agent.egg-info/
+venv/
+*.venv/
+.idea/
+.vscode/
